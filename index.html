@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>LoL 스펠 선택기</title>
+<style>
+  :root{
+    --gold:#c8aa6e;
+    --gold-bright:#f0e6d2;
+    --blue:#0ac8b9;
+    --bg0:#010a13;
+    --bg1:#0a1428;
+    --bg2:#0f2236;
+    --line:#1e3a52;
+    --red:#c0392b;
+    --green:#2ecc71;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;
+    background:radial-gradient(120% 120% at 50% 0%,var(--bg1),var(--bg0));
+    color:var(--gold-bright);
+    min-height:100vh;
+    padding:16px;
+  }
+  header{text-align:center;margin:8px 0 14px;}
+  header h1{
+    margin:0;font-size:22px;letter-spacing:2px;color:var(--gold);
+    text-shadow:0 0 12px rgba(200,170,110,.4);
+  }
+  header p{margin:6px 0 0;font-size:12px;color:#7a8a99;}
+
+  /* ===== 공유 바 ===== */
+  .share{
+    max-width:560px;margin:0 auto 14px;
+    background:linear-gradient(180deg,var(--bg2),var(--bg1));
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+  }
+  .share-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .status-dot{
+    width:10px;height:10px;border-radius:50%;background:#5e7283;flex:0 0 auto;
+    box-shadow:0 0 0 3px rgba(94,114,131,.18);
+  }
+  .status-dot.on{background:var(--green);box-shadow:0 0 0 3px rgba(46,204,113,.22);}
+  .status-dot.wait{background:#e0a32e;box-shadow:0 0 0 3px rgba(224,163,46,.22);}
+  .status-text{font-size:13px;color:#9fb4c4;flex:1;min-width:120px;}
+  .status-text b{color:var(--gold-bright);}
+  .share-btns{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{
+    font-size:12px;padding:8px 14px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--gold);background:transparent;color:var(--gold);
+    transition:.15s;white-space:nowrap;
+  }
+  .btn:active{background:rgba(200,170,110,.15);}
+  .btn.primary{background:var(--gold);color:#06121f;font-weight:700;}
+  .btn.ghost{border-color:var(--line);color:#9fb4c4;}
+  .share-link{
+    margin-top:10px;display:none;gap:8px;align-items:center;flex-wrap:wrap;
+  }
+  .share-link.show{display:flex;}
+  .share-link input{
+    flex:1;min-width:160px;font-size:12px;padding:8px 10px;border-radius:8px;
+    border:1px solid var(--line);background:#06121f;color:var(--gold-bright);
+  }
+  .room-code{
+    font-family:monospace;font-size:15px;letter-spacing:2px;color:var(--blue);font-weight:700;
+  }
+
+  .board{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px;}
+
+  .lane{
+    background:linear-gradient(180deg,var(--bg2),var(--bg1));
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    box-shadow:0 4px 16px rgba(0,0,0,.4);
+  }
+  .lane-head{display:flex;align-items:center;gap:12px;padding:12px 14px;}
+  .lane-name{
+    width:52px;flex:0 0 auto;font-weight:700;font-size:15px;color:var(--gold);
+    display:flex;align-items:center;gap:6px;
+  }
+  .lane-name .pos{font-size:18px;}
+  .slots{display:flex;gap:14px;flex:1;justify-content:center;}
+  .slot-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .slot{
+    position:relative;width:54px;height:54px;border-radius:8px;
+    border:2px solid var(--gold);background:#06121f;cursor:pointer;
+    overflow:hidden;user-select:none;transition:transform .08s;
+  }
+  .slot:active{transform:scale(.94);}
+  .slot img{width:100%;height:100%;object-fit:cover;display:block;}
+  .slot .fallback{
+    width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;text-align:center;background:#13283d;color:var(--gold);padding:2px;
+  }
+  .slot .cd-overlay{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.55);backdrop-filter:blur(1px);color:#fff;
+    font-size:20px;font-weight:800;text-shadow:0 1px 4px #000;
+  }
+  .slot.cooling img,.slot.cooling .fallback{filter:grayscale(1) brightness(.4);}
+  .slot.cooling .cd-overlay{display:flex;}
+  .slot .cd-sweep{position:absolute;inset:0;pointer-events:none;}
+  .slot-btn{
+    font-size:10px;padding:3px 8px;border:1px solid var(--gold);background:transparent;
+    color:var(--gold);border-radius:20px;cursor:pointer;
+  }
+  .slot-btn:active{background:rgba(200,170,110,.15);}
+
+  .arrow-btn{
+    flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+    background:#06121f;color:var(--gold);font-size:14px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:transform .25s, background .2s;
+  }
+  .arrow-btn.open{transform:rotate(180deg);background:rgba(200,170,110,.12);}
+
+  .panel{max-height:0;overflow:hidden;transition:max-height .3s ease;border-top:1px solid transparent;}
+  .panel.open{max-height:240px;border-top:1px solid var(--line);}
+  .panel-inner{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
+  .panel-title{font-size:11px;color:#7a8a99;letter-spacing:1px;}
+  .haste-row{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--line);
+    border-radius:8px;background:#06121f;color:#9fb4c4;font-size:12px;cursor:pointer;transition:.15s;
+  }
+  .chip .h{font-size:10px;color:#5e7283;}
+  .chip.active{
+    border-color:var(--blue);color:var(--gold-bright);background:rgba(10,200,185,.12);
+    box-shadow:0 0 10px rgba(10,200,185,.25);
+  }
+  .chip.active .h{color:var(--blue);}
+  .haste-sum{font-size:12px;color:var(--gold);margin-top:2px;}
+  .haste-sum b{color:var(--blue);}
+
+  .modal{
+    position:fixed;inset:0;background:rgba(0,5,10,.82);display:none;
+    align-items:center;justify-content:center;padding:20px;z-index:50;
+  }
+  .modal.open{display:flex;}
+  .modal-card{
+    width:100%;max-width:420px;background:linear-gradient(180deg,var(--bg2),var(--bg1));
+    border:1px solid var(--gold);border-radius:14px;padding:18px;
+  }
+  .modal-card h3{margin:0 0 14px;color:var(--gold);font-size:16px;text-align:center;}
+  .spell-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+  .spell-pick{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;}
+  .spell-pick .ic{
+    width:100%;aspect-ratio:1;border-radius:8px;border:2px solid var(--line);
+    overflow:hidden;background:#06121f;transition:.12s;
+  }
+  .spell-pick:active .ic{transform:scale(.92);}
+  .spell-pick .ic img{width:100%;height:100%;object-fit:cover;}
+  .spell-pick .ic .fallback{
+    width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:700;color:var(--gold);text-align:center;padding:2px;
+  }
+  .spell-pick:hover .ic{border-color:var(--gold);}
+  .spell-pick span{font-size:10px;color:#9fb4c4;}
+  .modal-close{
+    margin-top:16px;width:100%;padding:10px;border:1px solid var(--line);
+    background:transparent;color:#9fb4c4;border-radius:8px;cursor:pointer;font-size:13px;
+  }
+
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--bg2);border:1px solid var(--gold);color:var(--gold-bright);
+    padding:10px 18px;border-radius:24px;font-size:13px;opacity:0;pointer-events:none;
+    transition:.25s;z-index:100;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media(max-width:480px){
+    body{padding:10px;}
+    .lane-name{width:auto;font-size:13px;}
+    .lane-name .label{display:none;}
+    .slot{width:48px;height:48px;}
+    .slots{gap:10px;}
+    .lane-head{gap:8px;padding:10px;}
+    .spell-grid{grid-template-columns:repeat(5,1fr);gap:7px;}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>⚔ 소환사 주문 선택기</h1>
+    <p>스펠을 눌러 사용 · ▼ 로 쿨감 룬/신발 선택</p>
+  </header>
+
+  <!-- 실시간 공유 바 -->
+  <div class="share">
+    <div class="share-top">
+      <span class="status-dot" id="dot"></span>
+      <span class="status-text" id="statusText">혼자 사용 중 — 친구와 실시간으로 같이 보려면 방을 만드세요</span>
+      <div class="share-btns">
+        <button class="btn primary" id="makeRoom">방 만들기</button>
+        <button class="btn ghost" id="leaveRoom" style="display:none">나가기</button>
+      </div>
+    </div>
+    <div class="share-link" id="shareLink">
+      <span>방 코드 <span class="room-code" id="roomCode">------</span></span>
+      <input id="linkInput" readonly />
+      <button class="btn" id="copyLink">링크 복사</button>
+    </div>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <!-- 스펠 선택 모달 -->
+  <div class="modal" id="modal">
+    <div class="modal-card">
+      <h3 id="modal-title">스펠 선택</h3>
+      <div class="spell-grid" id="spellGrid"></div>
+      <button class="modal-close" id="modalClose">닫기</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const DDRAGON_VER = "14.10.1";
+const imgUrl = key => `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VER}/img/spell/${key}.png`;
+
+const SPELLS = [
+  {id:'flash',    name:'점멸',      img:'SummonerFlash',    cd:300},
+  {id:'ignite',   name:'점화',      img:'SummonerDot',      cd:180},
+  {id:'teleport', name:'순간이동',  img:'SummonerTeleport', cd:360},
+  {id:'heal',     name:'회복',      img:'SummonerHeal',     cd:240},
+  {id:'barrier',  name:'방어막',    img:'SummonerBarrier',  cd:180},
+  {id:'exhaust',  name:'탈진',      img:'SummonerExhaust',  cd:210},
+  {id:'ghost',    name:'유체화',    img:'SummonerHaste',    cd:210},
+  {id:'cleanse',  name:'정화',      img:'SummonerBoost',    cd:210},
+  {id:'smite',    name:'강타',      img:'SummonerSmite',    cd:90},
+  {id:'mark',     name:'표식',      img:'SummonerSnowball', cd:80},
+];
+const spellById = id => SPELLS.find(s=>s.id===id);
+
+const HASTE_OPTIONS = [
+  {id:'cosmic', name:'우주적 통찰력',    haste:18},
+  {id:'ionian', name:'아이오니아의 신발', haste:10},
+  {id:'bloody', name:'핏빛 명석함',      haste:21},
+];
+
+const LANES = [
+  {id:'top',     name:'탑',    pos:'⬆', spells:['flash','teleport']},
+  {id:'jungle',  name:'정글',  pos:'🌲', spells:['flash','smite']},
+  {id:'mid',     name:'미드',  pos:'✦',  spells:['flash','ignite']},
+  {id:'adc',     name:'원딜',  pos:'🏹', spells:['flash','heal']},
+  {id:'support', name:'서폿',  pos:'➕', spells:['flash','exhaust']},
+];
+
+const state = {};
+LANES.forEach(l=>{
+  state[l.id] = { spells:[...l.spells], haste:{cosmic:false,ionian:false,bloody:false}, open:false, cdEnd:[0,0] };
+});
+
+function laneHaste(laneId){
+  const h = state[laneId].haste;
+  return HASTE_OPTIONS.reduce((sum,o)=> sum + (h[o.id] ? o.haste : 0), 0);
+}
+const effectiveCd = (baseCd, haste) => baseCd * 100 / (100 + haste);
+
+function iconHTML(spell){
+  return `<img src="${imgUrl(spell.img)}" alt="${spell.name}"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <div class="fallback" style="display:none">${spell.name}</div>`;
+}
+
+const board = document.getElementById('board');
+
+function render(){
+  board.innerHTML = LANES.map(lane=>{
+    const st = state[lane.id];
+    const haste = laneHaste(lane.id);
+    const slots = st.spells.map((sid,i)=>{
+      const sp = spellById(sid);
+      return `
+        <div class="slot-wrap">
+          <div class="slot" data-lane="${lane.id}" data-slot="${i}" data-act="cast">
+            ${iconHTML(sp)}
+            <div class="cd-sweep"></div>
+            <div class="cd-overlay"></div>
+          </div>
+          <button class="slot-btn" data-lane="${lane.id}" data-slot="${i}" data-act="pick">선택</button>
+        </div>`;
+    }).join('');
+    const chips = HASTE_OPTIONS.map(o=>`
+      <div class="chip ${st.haste[o.id]?'active':''}" data-lane="${lane.id}" data-haste="${o.id}">
+        ${o.name}<span class="h">+${o.haste}</span>
+      </div>`).join('');
+    return `
+    <div class="lane">
+      <div class="lane-head">
+        <div class="lane-name"><span class="pos">${lane.pos}</span><span class="label">${lane.name}</span></div>
+        <div class="slots">${slots}</div>
+        <button class="arrow-btn ${st.open?'open':''}" data-lane="${lane.id}" data-act="toggle">▼</button>
+      </div>
+      <div class="panel ${st.open?'open':''}">
+        <div class="panel-inner">
+          <div class="panel-title">쿨타임 감소 적용</div>
+          <div class="haste-row">${chips}</div>
+          <div class="haste-sum">소환사 주문 가속 <b>${haste}</b> · 점멸 300초 → <b>${Math.round(effectiveCd(300,haste))}초</b></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  refreshCooldowns();
+}
+
+function castSpell(laneId, slotIdx){
+  const st = state[laneId];
+  if(st.cdEnd[slotIdx] > Date.now()) return;
+  const sp = spellById(st.spells[slotIdx]);
+  st.cdEnd[slotIdx] = Date.now() + effectiveCd(sp.cd, laneHaste(laneId))*1000;
+}
+
+function refreshCooldowns(){
+  const now = Date.now();
+  LANES.forEach(lane=>{
+    const st = state[lane.id];
+    st.cdEnd.forEach((end,i)=>{
+      const slot = board.querySelector(`.slot[data-lane="${lane.id}"][data-slot="${i}"]`);
+      if(!slot) return;
+      const ov = slot.querySelector('.cd-overlay');
+      const sweep = slot.querySelector('.cd-sweep');
+      const remain = end - now;
+      if(remain > 0){
+        slot.classList.add('cooling');
+        const sec = remain/1000;
+        ov.textContent = sec >= 10 ? Math.ceil(sec) : sec.toFixed(1);
+        const sp = spellById(st.spells[i]);
+        const total = effectiveCd(sp.cd, laneHaste(lane.id))*1000;
+        const deg = (remain/total)*360;
+        sweep.style.background = `conic-gradient(rgba(0,0,0,.55) ${deg}deg, transparent ${deg}deg)`;
+      }else{
+        slot.classList.remove('cooling');
+        sweep.style.background='transparent';
+        ov.textContent='';
+      }
+    });
+  });
+}
+setInterval(refreshCooldowns, 100);
+
+// ====== 스펠 선택 모달 ======
+const modal = document.getElementById('modal');
+const spellGrid = document.getElementById('spellGrid');
+const modalTitle = document.getElementById('modal-title');
+let pickTarget = null;
+function openPicker(laneId, slotIdx){
+  pickTarget = {laneId, slotIdx};
+  const laneName = LANES.find(l=>l.id===laneId).name;
+  modalTitle.textContent = `${laneName} · ${slotIdx+1}번 스펠 선택`;
+  spellGrid.innerHTML = SPELLS.map(sp=>`
+    <div class="spell-pick" data-spell="${sp.id}">
+      <div class="ic">${iconHTML(sp)}</div><span>${sp.name}</span>
+    </div>`).join('');
+  modal.classList.add('open');
+}
+function closePicker(){ modal.classList.remove('open'); pickTarget=null; }
+spellGrid.addEventListener('click', e=>{
+  const pick = e.target.closest('.spell-pick');
+  if(!pick || !pickTarget) return;
+  const st = state[pickTarget.laneId];
+  st.spells[pickTarget.slotIdx] = pick.dataset.spell;
+  st.cdEnd[pickTarget.slotIdx] = 0;
+  closePicker(); render(); broadcast();
+});
+document.getElementById('modalClose').addEventListener('click', closePicker);
+modal.addEventListener('click', e=>{ if(e.target===modal) closePicker(); });
+
+// ====== 이벤트 위임 ======
+board.addEventListener('click', e=>{
+  const arrow = e.target.closest('[data-act="toggle"]');
+  if(arrow){ state[arrow.dataset.lane].open = !state[arrow.dataset.lane].open; render(); return; }
+  const pickBtn = e.target.closest('[data-act="pick"]');
+  if(pickBtn){ openPicker(pickBtn.dataset.lane, +pickBtn.dataset.slot); return; }
+  const chip = e.target.closest('[data-haste]');
+  if(chip){
+    const st = state[chip.dataset.lane];
+    st.haste[chip.dataset.haste] = !st.haste[chip.dataset.haste];
+    render(); broadcast(); return;
+  }
+  const slot = e.target.closest('[data-act="cast"]');
+  if(slot){ castSpell(slot.dataset.lane, +slot.dataset.slot); refreshCooldowns(); broadcast(); return; }
+});
+
+/* ===================================================================
+   실시간 동기화 (WebRTC / PeerJS) — 백엔드/가입 불필요
+   호스트 1명 + 게스트 N명 (별 구조). 호스트가 게스트 변경을 중계.
+=================================================================== */
+const net = { peer:null, isHost:false, conns:[], room:null };
+const PREFIX = 'lolspellroom-';
+const dot = document.getElementById('dot');
+const statusText = document.getElementById('statusText');
+const shareLinkBox = document.getElementById('shareLink');
+const roomCodeEl = document.getElementById('roomCode');
+const linkInput = document.getElementById('linkInput');
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function serializeState(){
+  const now = Date.now(), out = {};
+  for(const id in state){
+    const s = state[id];
+    out[id] = { spells:s.spells, haste:s.haste, cdRemain:s.cdEnd.map(e=>Math.max(0,e-now)) };
+  }
+  return out;
+}
+function applyState(data){
+  const now = Date.now();
+  for(const id in data){
+    if(!state[id]) continue;
+    state[id].spells = data[id].spells;
+    state[id].haste  = data[id].haste;
+    state[id].cdEnd  = data[id].cdRemain.map(r=> r>0 ? now+r : 0);
+  }
+  render();
+}
+function broadcast(){
+  if(!net.peer) return;
+  const msg = {type:'state', data:serializeState()};
+  net.conns.forEach(c=> c.open && c.send(msg));
+}
+function handleData(msg, fromConn){
+  if(msg && msg.type==='state'){
+    applyState(msg.data);
+    if(net.isHost) net.conns.forEach(c=>{ if(c!==fromConn && c.open) c.send(msg); });
+  }
+}
+function setStatus(kind, html){
+  dot.className = 'status-dot' + (kind==='on'?' on':kind==='wait'?' wait':'');
+  statusText.innerHTML = html;
+}
+function peopleCount(){ return net.conns.filter(c=>c.open).length; }
+function updateConnStatus(){
+  const n = peopleCount();
+  if(net.isHost){
+    setStatus(n>0?'on':'wait', n>0
+      ? `실시간 연결됨 — 나 포함 <b>${n+1}명</b>이 같이 보는 중`
+      : `방 열림 — 친구가 들어오길 <b>기다리는 중</b>`);
+  }else{
+    setStatus(n>0?'on':'wait', n>0 ? `호스트와 <b>실시간 연결됨</b>` : `호스트에 <b>연결 중…</b>`);
+  }
+}
+
+function makeRoomCode(){
+  const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s='';
+  for(let i=0;i<6;i++) s+=ch[Math.floor(Math.random()*ch.length)];
+  return s;
+}
+function showShareUI(code){
+  roomCodeEl.textContent = code;
+  const url = location.origin && location.origin!=='null'
+    ? `${location.origin}${location.pathname}?room=${code}`
+    : `(파일을 웹에 올린 뒤 주소 끝에 ?room=${code} 를 붙이세요)`;
+  linkInput.value = url;
+  shareLinkBox.classList.add('show');
+  document.getElementById('makeRoom').style.display='none';
+  document.getElementById('leaveRoom').style.display='';
+}
+
+function registerConn(conn){
+  conn.on('open', ()=>{
+    net.conns.push(conn);
+    if(net.isHost) conn.send({type:'state', data:serializeState()}); // 새 참가자에게 현재 상태 전송
+    updateConnStatus();
+    toast('상대와 연결됨!');
+  });
+  conn.on('data', msg=> handleData(msg, conn));
+  conn.on('close', ()=>{ net.conns = net.conns.filter(c=>c!==conn); updateConnStatus(); });
+  conn.on('error', ()=>{});
+}
+
+function hostRoom(code){
+  net.room = code; net.isHost = true;
+  net.peer = new Peer(PREFIX+code);
+  net.peer.on('open', ()=>{ showShareUI(code); updateConnStatus(); });
+  net.peer.on('connection', registerConn);
+  net.peer.on('error', err=>{
+    if(err.type==='unavailable-id'){ // 이미 그 코드로 누가 호스트 중 → 게스트로 합류
+      net.peer.destroy(); net.peer=null; net.isHost=false; joinRoom(code, true);
+    }else{ toast('연결 오류: '+err.type); }
+  });
+}
+
+function joinRoom(code, silent){
+  net.room = code; net.isHost = false;
+  showShareUI(code);
+  net.peer = new Peer();
+  net.peer.on('open', ()=>{
+    updateConnStatus();
+    const conn = net.peer.connect(PREFIX+code, {reliable:true});
+    registerConn(conn);
+    setTimeout(()=>{ // 호스트가 없으면 내가 호스트가 됨
+      if(peopleCount()===0){
+        net.peer.destroy(); net.peer=null; hostRoom(code);
+        if(!silent) toast('방에 호스트가 없어 내가 방장이 되었어요');
+      }
+    }, 3500);
+  });
+  net.peer.on('error', ()=>{ if(peopleCount()===0){ net.peer&&net.peer.destroy(); net.peer=null; hostRoom(code); } });
+}
+
+function leaveRoom(){
+  if(net.peer){ net.peer.destroy(); }
+  net.peer=null; net.isHost=false; net.conns=[]; net.room=null;
+  shareLinkBox.classList.remove('show');
+  document.getElementById('makeRoom').style.display='';
+  document.getElementById('leaveRoom').style.display='none';
+  setStatus('', '혼자 사용 중 — 친구와 실시간으로 같이 보려면 방을 만드세요');
+  history.replaceState(null,'',location.pathname);
+}
+
+document.getElementById('makeRoom').addEventListener('click', ()=>{
+  const code = makeRoomCode();
+  history.replaceState(null,'',`?room=${code}`);
+  hostRoom(code);
+});
+document.getElementById('leaveRoom').addEventListener('click', leaveRoom);
+document.getElementById('copyLink').addEventListener('click', ()=>{
+  linkInput.select();
+  navigator.clipboard?.writeText(linkInput.value).then(()=>toast('링크 복사됨!'),()=>{
+    document.execCommand('copy'); toast('링크 복사됨!');
+  });
+});
+
+render();
+
+// URL에 ?room=CODE 가 있으면 자동으로 그 방에 합류
+const roomParam = new URLSearchParams(location.search).get('room');
+if(roomParam) joinRoom(roomParam.toUpperCase());
+</script>
+</body>
+</html>
